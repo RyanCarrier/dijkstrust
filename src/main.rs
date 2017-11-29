@@ -8,15 +8,13 @@ struct Vertex {
 }
 
 struct Graph {
-    source: u64,
-    destination: u64,
     verticies: Vec<Vertex>,
-    touch_dest: bool,
 }
 
 struct BestPath {
+    success: bool,
     distance: i64,
-    path: Vec<Vertex>,
+    path: Vec<u64>,
 }
 
 
@@ -30,12 +28,7 @@ fn new_vertex(id: u64) -> Vertex {
 }
 
 fn new_graph() -> Graph {
-    Graph {
-        source: 0,
-        destination: 0,
-        verticies: Vec::new(),
-        touch_dest: false,
-    }
+    Graph { verticies: Vec::new() }
 }
 
 impl Graph {
@@ -53,22 +46,47 @@ impl Graph {
         }
     }
     fn setup(&mut self) {
+        for mut v in self.verticies {
+            v.best_distance = std::i64::MAX;
+            v.best_verticie = 0;
+        }
         //set best distance to i64max
         //reset all best distance and vertex
     }
-    fn shortest(&mut self, source: u64, destination: u64) -> BestPath {
+    fn shortest(&mut self, source: &mut u64, destination: u64) -> BestPath {
         let mut best = 0;
         let mut visiting = LinkedList::new();
-        let mut v;
+        let mut touch_dest;
+        let mut best_distance = std::i64::MAX;
         self.setup();
-        visiting.append(source);
+        visiting.push_back(*source);
         while visiting.len() > 0 {
-            v = self.verticies.get(visiting.pop());
-            for (id, dist) in self.verticies[visit].arcs.iter() {
-                if v.distance > self.verticies.get(id).best_distance {}
+            let mut visitingid = visiting.pop_front().unwrap() as usize;
+            for (id, dist) in v.arcs.iter() {
+                if v.best_distance + dist >= self.verticies[*id as usize].best_distance {
+                    continue;
+                }
+                if *id == destination && v.best_distance + dist < best_distance {
+                    touch_dest = true;
+                }
+                self.verticies[*id as usize].best_distance = v.best_distance + dist;
+                self.verticies[*id as usize].best_verticie = *id;
+                visiting.push_back(*id)
             }
         }
 
+        let mut b = BestPath {
+            success: touch_dest,
+            distance: best_distance,
+            path: Vec::new(),
+        };
+        let v = &self.verticies[*source as usize];
+        b.path.push(v.id);
+        while v.id != destination {
+            let v = &self.verticies[v.best_verticie as usize];
+            b.path.push(v.id);
+        }
+        return b;
     }
 }
 
