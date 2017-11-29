@@ -1,0 +1,6 @@
+[package]
+name = "dijkstrust"
+version = "0.1.0"
+authors = ["Ryan Carrier <ryan.j.carrier@gmail.com>"]
+
+[dependencies]
