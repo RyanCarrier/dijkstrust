@@ -61,7 +61,7 @@ impl Graph {
         self.setup();
         visiting.push_back(*source);
         while visiting.len() > 0 {
-            let mut visitingid = visiting.pop_front().unwrap() as usize;
+            let mut visitingid = visiting.pop_front().unwrap();
             for (id, dist) in v.arcs.iter() {
                 if v.best_distance + dist >= self.verticies[*id as usize].best_distance {
                     continue;
