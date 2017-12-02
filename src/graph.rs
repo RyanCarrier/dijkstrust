@@ -3,6 +3,7 @@ use std::collections::LinkedList;
 use vertex;
 use std;
 
+#[derive(PartialEq)]
 pub struct Graph {
     verticies: Vec<vertex::Vertex>,
 }
@@ -64,6 +65,7 @@ impl Graph {
     }
 
     pub fn shortest(&mut self, source: u64, destination: u64) -> Option<BestPath> {
+        //TODO: implement anti looping (on arc direct and on secondary to self.)
         let mut visiting = LinkedList::new();
         let mut touch_dest = false;
         self.setup(source);
@@ -103,5 +105,107 @@ impl Graph {
             return None;
         }
         return Some(self.best_path(source, destination, touch_dest));
+    }
+
+    pub fn import(source: &str) -> Option<Graph> {
+        /*
+        NODE to,dist to,dist
+        NODE
+        NODE
+        */
+        let mut g = Graph::new();
+        for line in source.split("\n") {
+            let mut items = line.trim().split(" ");
+            let n = items.next();
+            if n == None {
+                continue;
+            }
+
+            let mut v = vertex::Vertex::new(n.unwrap().parse::<u64>().unwrap());
+            for item in items {
+                //first item should be consumed by first next()
+                let mut arc_raw = item.trim().split(",");
+                let to = arc_raw.next();
+                let distance = arc_raw.next();
+                if to == None || distance == None {
+                    return None;
+                }
+                v.add_arc(
+                    to.unwrap().parse::<u64>().unwrap() as u64,
+                    distance.unwrap().parse::<i64>().unwrap() as i64,
+                )
+            }
+            g.add_vertex(v);
+        }
+        Some(g)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new() {
+
+        assert_eq!(Graph::new(), Graph { verticies: Vec::new() });
+
+    }
+
+    #[test]
+    fn test_add_remove_vertex() {
+        let mut g = Graph::new();
+        g.add_vertex(vertex::Vertex::new(1234));
+        assert!(g != Graph::new());
+        let mut v2 = vertex::Vertex::new(1);
+        v2.add_arc(1234, 5);
+        g.add_vertex(v2);
+        assert_eq!(g.verticies[0], vertex::Vertex::new(1234));
+        let arc = vertex::Arc {
+            to: 1234,
+            distance: 5,
+        };
+        assert_eq!(g.verticies[1].arcs[0], arc);
+        g.remove_vertex(1234);
+        assert_eq!(g.verticies.len(), 1);
+        assert_eq!(g.verticies[0].arcs[0], arc);
+    }
+
+    #[test]
+    fn test_import() {
+        let a = Graph::import(
+            "0 1,1
+            1 2,1 4,1000
+            2 5,1 4,10
+            4 0,5 5,0
+            5",
+        ).unwrap();
+        assert_eq!(a.verticies.len(), 5);
+        assert_eq!(a.verticies[0].id, 0);
+        assert_eq!(a.verticies[0].arcs.len(), 1);
+        assert_eq!(a.verticies[0].arcs[0], vertex::Arc { to: 1, distance: 1 });
+        assert_eq!(a.verticies[4].id, 5);
+        assert_eq!(a.verticies[4].arcs.len(), 0);
+        assert_eq!(a.verticies[2].arcs.len(), 2);
+        assert_eq!(
+            a.verticies[2].arcs[1],
+            vertex::Arc {
+                to: 4,
+                distance: 10,
+            }
+        );
+    }
+
+    #[test]
+    fn test_shortest_nopath() {}
+
+    fn get_test_graphs() -> Vec<Graph> {
+        let mut v = Vec::new();
+        for i in 0..3 {
+            v.push(Graph::new());
+        }
+        //Graph 1 NO PATH
+        v
     }
 }

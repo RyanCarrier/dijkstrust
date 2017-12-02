@@ -1,5 +1,5 @@
-mod graph;
 mod vertex;
+mod graph;
 
 fn main() {
     let mut g = graph::Graph::new();
