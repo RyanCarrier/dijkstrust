@@ -1,7 +1,10 @@
+
 use std::fmt;
 use std::collections::LinkedList;
 use vertex;
 use std;
+use std::fs::File;
+use std::io::Read;
 
 #[derive(PartialEq)]
 pub struct Graph {
@@ -120,8 +123,11 @@ impl Graph {
             if n == None {
                 continue;
             }
-
-            let mut v = vertex::Vertex::new(n.unwrap().parse::<u64>().unwrap());
+            let n = n.unwrap().parse::<u64>();
+            if n.is_err() {
+                return None;
+            }
+            let mut v = vertex::Vertex::new(n.unwrap());
             for item in items {
                 //first item should be consumed by first next()
                 let mut arc_raw = item.trim().split(",");
@@ -130,22 +136,50 @@ impl Graph {
                 if to == None || distance == None {
                     return None;
                 }
-                v.add_arc(
-                    to.unwrap().parse::<u64>().unwrap() as u64,
-                    distance.unwrap().parse::<i64>().unwrap() as i64,
-                )
+                let t = to.unwrap().parse::<u64>();
+                let d = distance.unwrap().parse::<i64>();
+                if t.is_err() || d.is_err() {
+                    return None;
+                }
+                v.add_arc(t.unwrap() as u64, d.unwrap() as i64)
             }
             g.add_vertex(v);
         }
         Some(g)
+    }
+
+    pub fn import_file(file: &str) -> Option<Graph> {
+        let mut data = String::new();
+        let mut f = match File::open(file) {
+            Ok(f) => f,
+            Err(f) => return None,
+        };
+        f.read_to_string(&mut data);
+        return Graph::import(&*data);
+    }
+
+    pub fn export(self) -> String {
+        let mut s = String::new();
+        for v in self.verticies {
+            s = format!("{}{}", s, v.id);
+            for a in v.arcs {
+                s = format!("{} {},{}", s, a.to, a.distance);
+            }
+            s = format!("{}\n", s);
+        }
+        s
     }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
+    use super::*;
+    use rand;
+    use std::fs::File;
+    use std::io::Read;
+    use std::io::Write;
     #[test]
     fn test_new() {
 
@@ -195,17 +229,87 @@ mod tests {
                 distance: 10,
             }
         );
+        let fail_strings = [
+            "0 1,
+1 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+            "0 ,1
+1 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+            "0 1,1
+a 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+        ];
+        for f in fail_strings.iter() {
+            assert_eq!(Graph::import(f), None);
+        }
     }
 
     #[test]
     fn test_shortest_nopath() {}
 
-    fn get_test_graphs() -> Vec<Graph> {
-        let mut v = Vec::new();
-        for i in 0..3 {
-            v.push(Graph::new());
+    #[test]
+    fn test_export() {
+        let success_strings = [
+            "0 1,4
+1 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+            "0 2,1
+1 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+            "0 1,1
+6 2,1 4,1000
+2 5,1 4,10
+4 0,5 5,0
+5",
+        ];
+        for s in success_strings.iter() {
+            assert_eq!(
+                Graph::import(s).unwrap().export().trim(),
+                s.to_string().trim()
+            );
         }
-        //Graph 1 NO PATH
-        v
     }
+
+    fn generate(nodes: u64, filename: &str) {
+        let mut g = Graph::new();
+
+        for i in 0..nodes {
+            let mut v = vertex::Vertex::new(i);
+            for j in 0..nodes {
+                if j == i {
+                    continue;
+                }
+                let r = rand::random::<i64>();
+                v.add_arc(
+                    j,
+                    (2 * nodes - j) as i64 + (r / ((nodes * (nodes - j + 1)) as i64)),
+                );
+            }
+            g.add_vertex(v);
+        }
+        write_to_file(&*g.export(), &*format!("graph{}nodes.txt", nodes));
+    }
+
+    fn write_to_file(source: &str, file: &str) {
+        let mut f = match File::create(file) {
+            Ok(f) => f,
+            Err(f) => {
+                println!("Error writing to file '{}'", file);
+                return;
+            }
+        };
+        f.write_all(source.as_bytes());
+    }
+
 }

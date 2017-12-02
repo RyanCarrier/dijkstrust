@@ -1,7 +1,10 @@
+extern crate rand;
 mod vertex;
 mod graph;
 
+
 fn main() {
+
     let mut g = graph::Graph::new();
     for i in 0i64..10i64 {
         let mut v = vertex::Vertex::new(i as u64);
