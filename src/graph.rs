@@ -1,4 +1,5 @@
 
+
 use std::fmt;
 use std::collections::LinkedList;
 use vertex;
@@ -152,7 +153,7 @@ impl Graph {
         let mut data = String::new();
         let mut f = match File::open(file) {
             Ok(f) => f,
-            Err(f) => return None,
+            Err(_f) => return None,
         };
         f.read_to_string(&mut data);
         return Graph::import(&*data);
@@ -174,17 +175,11 @@ impl Graph {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use rand;
-    use std::fs::File;
-    use std::io::Read;
-    use std::io::Write;
+
     #[test]
     fn test_new() {
-
         assert_eq!(Graph::new(), Graph { verticies: Vec::new() });
-
     }
 
     #[test]
@@ -280,36 +275,75 @@ a 2,1 4,1000
             );
         }
     }
+}
 
-    fn generate(nodes: u64, filename: &str) {
+
+
+#[cfg(all(test, feature = "unstable"))]
+mod bench {
+
+    use test::Bencher;
+
+    use graph::Graph;
+    use vertex::Vertex;
+    use rand;
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::Path;
+
+    #[bench]
+    fn bench_node_16(b: &mut Bencher) {
+        bench(16, b);
+    }
+
+    fn bench(n: i64, b: &mut Bencher) {
+        let base = "./test_files/".to_owned();
+        let filename = generate(n, base);
+        let mut g = Graph::import_file(&filename).unwrap();
+        b.iter(|| g.shortest(0, (n - 1) as u64));
+    }
+
+    fn generate(nodes: i64, mut path: String) -> String {
+        if !path.ends_with("/") {
+            path = format!("{}/", path);
+        }
+        let filename = format!("{}graph{}nodes.txt", path, nodes);
+        if Path::new(&filename).exists() {
+            println!("File {} already exists, leaving.", filename);
+        }
         let mut g = Graph::new();
-
-        for i in 0..nodes {
-            let mut v = vertex::Vertex::new(i);
-            for j in 0..nodes {
+        for i in 0..nodes as i64 {
+            let mut v = Vertex::new(i as u64);
+            for j in 0..nodes as i64 {
                 if j == i {
                     continue;
                 }
                 let r = rand::random::<i64>();
                 v.add_arc(
-                    j,
+                    j as u64,
                     (2 * nodes - j) as i64 + (r / ((nodes * (nodes - j + 1)) as i64)),
                 );
             }
             g.add_vertex(v);
         }
-        write_to_file(&*g.export(), &*format!("graph{}nodes.txt", nodes));
+        write_to_file(&*g.export(), &filename);
+        return filename;
     }
 
     fn write_to_file(source: &str, file: &str) {
         let mut f = match File::create(file) {
             Ok(f) => f,
-            Err(f) => {
+            Err(_f) => {
                 println!("Error writing to file '{}'", file);
                 return;
             }
         };
-        f.write_all(source.as_bytes());
+        let _r = match f.write_all(source.as_bytes()) {
+            Ok(r) => r,
+            Err(r) => {
+                println!("error writing to file {} {}", file, r);
+                return;
+            }
+        };
     }
-
 }

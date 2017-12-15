@@ -3,5 +3,8 @@ name = "dijkstrust"
 version = "0.1.0"
 authors = ["Ryan Carrier <ryan.j.carrier@gmail.com>"]
 
+[features]
+unstable = []
+
 [dependencies]
 rand = "0.3.18"

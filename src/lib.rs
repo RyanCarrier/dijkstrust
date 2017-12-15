@@ -1,3 +1,7 @@
+#![cfg_attr(feature = "unstable", feature(test))]
+#[cfg(all(test, feature = "unstable"))]
+extern crate test;
+
 extern crate rand;
-mod graph;
-mod vertex;
+pub mod graph;
+pub mod vertex;
