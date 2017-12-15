@@ -1,5 +1,4 @@
 
-
 use std::fmt;
 use std::collections::LinkedList;
 use vertex;
@@ -281,25 +280,30 @@ a 2,1 4,1000
 
 #[cfg(all(test, feature = "unstable"))]
 mod bench {
-
+    //extern crate test;
     use test::Bencher;
 
     use graph::Graph;
     use vertex::Vertex;
     use rand;
     use std::fs::File;
+    use std::fs;
     use std::io::Write;
     use std::path::Path;
+    use std::error::Error;
 
     #[bench]
     fn bench_node_16(b: &mut Bencher) {
-        bench(16, b);
+        benchn(16, b);
     }
 
-    fn bench(n: i64, b: &mut Bencher) {
+    fn benchn(n: i64, b: &mut Bencher) {
         let base = "./test_files/".to_owned();
         let filename = generate(n, base);
-        let mut g = Graph::import_file(&filename).unwrap();
+        let mut g = match Graph::import_file(&filename).unwrap() {
+            Ok(r) => r,
+            Err(e) => println!("Error importing: {} {}", filename, e.description()),
+        };
         b.iter(|| g.shortest(0, (n - 1) as u64));
     }
 
@@ -307,9 +311,11 @@ mod bench {
         if !path.ends_with("/") {
             path = format!("{}/", path);
         }
+        fs::create_dir_all(&path);
         let filename = format!("{}graph{}nodes.txt", path, nodes);
         if Path::new(&filename).exists() {
             println!("File {} already exists, leaving.", filename);
+            return filename;
         }
         let mut g = Graph::new();
         for i in 0..nodes as i64 {
@@ -331,19 +337,34 @@ mod bench {
     }
 
     fn write_to_file(source: &str, file: &str) {
+        /*
         let mut f = match File::create(file) {
-            Ok(f) => f,
-            Err(_f) => {
-                println!("Error writing to file '{}'", file);
-                return;
+            Err(f) => {
+                println!("Error writing to file '{}' {}", file, f);
+                f;
             }
+            Ok(f) => f,
+
+            _ => println!("Nothing"),
         };
-        let _r = match f.write_all(source.as_bytes()) {
+        let _r = match f.write_fmt("{}", source) {
             Ok(r) => r,
             Err(r) => {
                 println!("error writing to file {} {}", file, r);
                 return;
             }
+        };*/
+
+        // Open a file in write-only mode, returns `io::Result<File>`
+        let mut f = match File::create(&file) {
+            Err(why) => panic!("couldn't create {}: {}", file, why.description()),
+            Ok(f) => f,
         };
+
+        // Write the `LOREM_IPSUM` string to `file`, returns `io::Result<()>`
+        match f.write_all(source.as_bytes()) {
+            Err(why) => panic!("couldn't write to {}: {}", file, why.description()),
+            Ok(_) => println!("successfully wrote to {}", file),
+        }
     }
 }

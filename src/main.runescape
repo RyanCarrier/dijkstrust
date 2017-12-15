@@ -1,4 +1,6 @@
+#![feature(test)]
 extern crate rand;
+extern crate test;
 mod vertex;
 mod graph;
 
