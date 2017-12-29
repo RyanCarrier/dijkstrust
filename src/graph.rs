@@ -5,6 +5,63 @@ use vertex;
 use std;
 use std::fs::File;
 use std::io::Read;
+use std::io;
+use std::num;
+use std::error;
+
+
+
+#[derive(Debug)]
+pub enum ImportError {
+    Io(io::Error),
+    Fmt(fmt::Error),
+    ParseF(num::ParseFloatError),
+    ParseI(num::ParseIntError),
+    FileFormat,
+}
+
+
+impl fmt::Display for ImportError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            // Both underlying errors already impl `Display`, so we defer to
+            // their implementations.
+            ImportError::Io(ref err) => write!(f, "IO error: {}", err),
+            ImportError::Fmt(ref err) => write!(f, "Fmt error: {}", err),
+            ImportError::ParseF(ref err) => write!(f, "Parse error: {}", err),
+            ImportError::ParseI(ref err) => write!(f, "Parse error: {}", err),
+            ImportError::FileFormat => {
+                write!(f, "Format error: {}", "Issue with import file format")
+            }
+        }
+    }
+}
+
+impl error::Error for ImportError {
+    fn description(&self) -> &str {
+        // Both underlying errors already impl `Error`, so we defer to their
+        // implementations.
+        match *self {
+            ImportError::Io(ref err) => err.description(),
+            ImportError::Fmt(ref err) => err.description(),
+            ImportError::ParseF(ref err) => err.description(),
+            ImportError::ParseI(ref err) => err.description(),
+            ImportError::FileFormat => "Format error: Issue with import file format",
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            ImportError::Io(ref err) => Some(err),
+            ImportError::Fmt(ref err) => Some(err),
+            ImportError::ParseF(ref err) => Some(err),
+            ImportError::ParseI(ref err) => Some(err),
+            ImportError::FileFormat => None,
+        }
+    }
+}
+
+
 
 #[derive(PartialEq)]
 pub struct Graph {
@@ -110,7 +167,7 @@ impl Graph {
         return Some(self.best_path(source, destination, touch_dest));
     }
 
-    pub fn import(source: &str) -> Option<Graph> {
+    pub fn import(source: &str) -> Result<Graph, ImportError> {
         /*
         NODE to,dist to,dist
         NODE
@@ -120,54 +177,61 @@ impl Graph {
         for line in source.split("\n") {
             let mut items = line.trim().split(" ");
             let n = items.next();
-            if n == None {
+            if n == None || n.unwrap().trim().is_empty() {
                 continue;
             }
-            let n = n.unwrap().parse::<u64>();
-            if n.is_err() {
-                return None;
-            }
-            let mut v = vertex::Vertex::new(n.unwrap());
+            let n = try!(n.unwrap().parse::<u64>().map_err(ImportError::ParseI));
+            let mut v = vertex::Vertex::new(n);
             for item in items {
+                if item.trim().is_empty() {
+                    continue;
+                }
                 //first item should be consumed by first next()
                 let mut arc_raw = item.trim().split(",");
                 let to = arc_raw.next();
                 let distance = arc_raw.next();
-                if to == None || distance == None {
-                    return None;
+                if (to == None || to.unwrap().trim().is_empty()) ||
+                    (distance == None || distance.unwrap().trim().is_empty())
+                {
+                    return Err(ImportError::FileFormat);
                 }
-                let t = to.unwrap().parse::<u64>();
-                let d = distance.unwrap().parse::<i64>();
-                if t.is_err() || d.is_err() {
-                    return None;
-                }
-                v.add_arc(t.unwrap() as u64, d.unwrap() as i64)
+                let t = try!(to.unwrap().parse::<u64>().map_err(ImportError::ParseI));
+                let d = try!(distance.unwrap().parse::<i64>().map_err(
+                    ImportError::ParseI,
+                ));
+                v.add_arc(t as u64, d as i64)
             }
             g.add_vertex(v);
         }
-        Some(g)
+        Ok(g)
     }
 
-    pub fn import_file(file: &str) -> Option<Graph> {
+    pub fn import_file(file: &str) -> Result<Graph, ImportError> {
         let mut data = String::new();
-        let mut f = match File::open(file) {
-            Ok(f) => f,
-            Err(_f) => return None,
-        };
-        f.read_to_string(&mut data);
+        let mut f = try!(File::open(file).map_err(ImportError::Io));
+
+        try!(f.read_to_string(&mut data).map_err(ImportError::Io));
         return Graph::import(&*data);
     }
 
     pub fn export(self) -> String {
-        let mut s = String::new();
+        let mut i = 0;
+        let l = self.verticies.len();
+        let mut final_str: Vec<Vec<String>> = Vec::with_capacity(l as usize);
         for v in self.verticies {
-            s = format!("{}{}", s, v.id);
+            final_str.push(Vec::with_capacity(v.arcs.len() + 2 as usize));
+            final_str[i].push(format!("{}", v.id));
             for a in v.arcs {
-                s = format!("{} {},{}", s, a.to, a.distance);
+                final_str[i].push(format!("{},{}", a.to, a.distance));
             }
-            s = format!("{}\n", s);
+            final_str[i].push(format!("\r\n"));
+            i = i + 1;
         }
-        s
+        let mut f: Vec<String> = Vec::with_capacity(l as usize);
+        for x in final_str {
+            f.push(x.join(" "))
+        }
+        return f.join("");
     }
 }
 
@@ -223,27 +287,42 @@ mod tests {
                 distance: 10,
             }
         );
-        let fail_strings = [
-            "0 1,
-1 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
-5",
-            "0 ,1
-1 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
-5",
-            "0 1,1
-a 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
-5",
-        ];
-        for f in fail_strings.iter() {
-            assert_eq!(Graph::import(f), None);
-        }
     }
+
+    #[test]
+    #[should_panic(expected = r#"FileFormat"#)]
+    fn test_import_fail1() {
+        let fail_string1 = "0 1,
+        1 2,1 4,1000
+        2 5,1 4,10
+        4 0,5 5,0
+        5";
+        Graph::import(fail_string1).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = r#"FileFormat"#)]
+    fn test_import_fail2() {
+        let fail_string2 = "0 ,1
+        1 2,1 4,1000
+        2 5,1 4,10
+        4 0,5 5,0
+        5";
+        Graph::import(fail_string2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = r#"InvalidDigit"#)]
+    fn test_import_fail3() {
+        let fail_string3 = "0 1,1
+        a 2,1 4,1000
+        2 5,1 4,10
+        4 0,5 5,0
+        5";
+        Graph::import(fail_string3).unwrap();
+    }
+
+
 
     #[test]
     fn test_shortest_nopath() {}
@@ -269,7 +348,7 @@ a 2,1 4,1000
         ];
         for s in success_strings.iter() {
             assert_eq!(
-                Graph::import(s).unwrap().export().trim(),
+                Graph::import(s).unwrap().export().trim().replace(" \r", ""),
                 s.to_string().trim()
             );
         }
@@ -291,18 +370,42 @@ mod bench {
     use std::io::Write;
     use std::path::Path;
     use std::error::Error;
+    use std::io;
 
     #[bench]
-    fn bench_node_16(b: &mut Bencher) {
+    fn bench_0_node_4(b: &mut Bencher) {
+        benchn(4, b);
+    }
+    #[bench]
+    fn bench_1_node_16(b: &mut Bencher) {
         benchn(16, b);
+    }
+    #[bench]
+    fn bench_2_node_64(b: &mut Bencher) {
+        benchn(64, b);
+    }
+    #[bench]
+    fn bench_3_node_256(b: &mut Bencher) {
+        benchn(256, b);
+    }
+    #[bench]
+    fn bench_4_node_1024(b: &mut Bencher) {
+        benchn(1024, b);
+    }
+    #[bench]
+    fn bench_5_node_4096(b: &mut Bencher) {
+        benchn(4096, b);
     }
 
     fn benchn(n: i64, b: &mut Bencher) {
         let base = "./test_files/".to_owned();
         let filename = generate(n, base);
-        let mut g = match Graph::import_file(&filename).unwrap() {
+        let mut g = match Graph::import_file(&filename) {
             Ok(r) => r,
-            Err(e) => println!("Error importing: {} {}", filename, e.description()),
+            Err(e) => {
+                println!("Error importing: {} {}", filename, e);
+                return;
+            }
         };
         b.iter(|| g.shortest(0, (n - 1) as u64));
     }
@@ -314,9 +417,13 @@ mod bench {
         fs::create_dir_all(&path);
         let filename = format!("{}graph{}nodes.txt", path, nodes);
         if Path::new(&filename).exists() {
-            println!("File {} already exists, leaving.", filename);
+            //fs::remove_file(Path::new(&filename));
+            //println!("File {} already exists, removing.", filename);
+            //println!("File {} already exists, leaving.", filename);
             return filename;
         }
+        print!("\nGenerating...");
+        io::stdout().flush();
         let mut g = Graph::new();
         for i in 0..nodes as i64 {
             let mut v = Vertex::new(i as u64);
@@ -324,47 +431,35 @@ mod bench {
                 if j == i {
                     continue;
                 }
-                let r = rand::random::<i64>();
-                v.add_arc(
-                    j as u64,
-                    (2 * nodes - j) as i64 + (r / ((nodes * (nodes - j + 1)) as i64)),
-                );
+                //u32 to i64, to ensure >0
+                let r = rand::random::<u32>() as i64 % ((nodes * (nodes - j + 1)) as i64);
+                v.add_arc(j as u64, ((2 * nodes) - j) as i64 + (r));
             }
             g.add_vertex(v);
         }
-        write_to_file(&*g.export(), &filename);
+        print!("✓\nExporting...");
+        io::stdout().flush();
+        let x = &*g.export();
+        println!("✓");
+        write_to_file(x, &filename);
         return filename;
     }
 
     fn write_to_file(source: &str, file: &str) {
-        /*
-        let mut f = match File::create(file) {
-            Err(f) => {
-                println!("Error writing to file '{}' {}", file, f);
-                f;
-            }
-            Ok(f) => f,
-
-            _ => println!("Nothing"),
-        };
-        let _r = match f.write_fmt("{}", source) {
-            Ok(r) => r,
-            Err(r) => {
-                println!("error writing to file {} {}", file, r);
-                return;
-            }
-        };*/
-
+        print!("Creating file...");
+        io::stdout().flush();
         // Open a file in write-only mode, returns `io::Result<File>`
         let mut f = match File::create(&file) {
             Err(why) => panic!("couldn't create {}: {}", file, why.description()),
             Ok(f) => f,
         };
-
+        print!("✓\nWriting...");
+        io::stdout().flush();
         // Write the `LOREM_IPSUM` string to `file`, returns `io::Result<()>`
         match f.write_all(source.as_bytes()) {
             Err(why) => panic!("couldn't write to {}: {}", file, why.description()),
-            Ok(_) => println!("successfully wrote to {}", file),
+            Ok(_) => println!("✓"),
         }
+        io::stdout().flush();
     }
 }
