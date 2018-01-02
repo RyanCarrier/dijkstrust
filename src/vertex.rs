@@ -1,10 +1,13 @@
 use std::fmt;
-#[derive(Debug, Clone, PartialEq)]
+use std::cmp::Ordering;
+
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Arc {
     pub to: u64,
     pub distance: i64,
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Vertex {
     pub id: u64,
     pub best_distance: i64,
@@ -12,6 +15,18 @@ pub struct Vertex {
     pub arcs: Vec<Arc>,
 }
 
+impl Ord for Vertex {
+    fn cmp(&self, other: &Vertex) -> Ordering {
+        other.best_distance.cmp(&self.best_distance).then_with(|| {
+            self.id.cmp(&other.id)
+        })
+    }
+}
+impl PartialOrd for Vertex {
+    fn partial_cmp(&self, other: &Vertex) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 impl fmt::Debug for Vertex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

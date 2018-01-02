@@ -8,7 +8,8 @@ use std::io::Read;
 use std::io;
 use std::num;
 use std::error;
-
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 
 #[derive(Debug)]
@@ -134,13 +135,14 @@ impl Graph {
 
     pub fn shortest(&mut self, source: u64, destination: u64) -> Option<BestPath> {
         //TODO: implement anti looping (on arc direct and on secondary to self.)
-        let mut visiting = LinkedList::new();
+        //let mut visiting = LinkedList::new();
+        let mut visiting = BinaryHeap::new();
         let mut touch_dest = false;
         self.setup(source);
-        visiting.push_back(source);
+        visiting.push(source);
         while !visiting.is_empty() {
             //for each node we are visiting, get it's current id, distance and arcs to other nodes
-            let visitingid = visiting.pop_front().unwrap();
+            let visitingid = visiting.pop().unwrap();
             let distance = self.verticies[visitingid as usize].best_distance;
 
             //let arcs = self.verticies[visitingid as usize].arcs.clone();
@@ -166,7 +168,7 @@ impl Graph {
                 //set it to be (re)visited later
                 vertex.best_distance = distance + dist;
                 vertex.best_verticie = visitingid;
-                visiting.push_back(id);
+                visiting.push(id);
             }
         }
         if !touch_dest {
@@ -361,6 +363,20 @@ mod bench {
     use std::io;
 
     #[bench]
+    fn setup_node_4(b: &mut Bencher) {
+        bench_setup_n(4, b);
+    }
+    #[bench]
+    fn setup_node_256(b: &mut Bencher) {
+        bench_setup_n(256, b);
+    }
+    #[bench]
+    fn setup_node_4096(b: &mut Bencher) {
+        bench_setup_n(4096, b);
+    }
+
+
+    #[bench]
     fn bench_0_node_4(b: &mut Bencher) {
         benchn(4, b);
     }
@@ -383,6 +399,19 @@ mod bench {
     #[bench]
     fn bench_5_node_4096(b: &mut Bencher) {
         benchn(4096, b);
+    }
+
+    fn bench_setup_n(n: i64, b: &mut Bencher) {
+        let base = "./test_files/".to_owned();
+        let filename = generate(n, base);
+        let mut g = match Graph::import_file(&filename) {
+            Ok(r) => r,
+            Err(e) => {
+                println!("Error importing: {} {}", filename, e);
+                return;
+            }
+        };
+        b.iter(|| g.setup(0));
     }
 
     fn benchn(n: i64, b: &mut Bencher) {
