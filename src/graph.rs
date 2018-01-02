@@ -107,6 +107,14 @@ impl Graph {
         //reset all best distance and vertex
     }
 
+    pub fn export(&self) -> String {
+        return (&self.verticies)
+            .into_iter()
+            .map(|v| v.export())
+            .collect::<Vec<String>>()
+            .join("\r\n");
+    }
+
     fn best_path(&self, source: u64, destination: u64, touch_dest: bool) -> BestPath {
         let mut b = BestPath {
             success: touch_dest,
@@ -212,26 +220,6 @@ impl Graph {
 
         try!(f.read_to_string(&mut data).map_err(ImportError::Io));
         return Graph::import(&*data);
-    }
-
-    pub fn export(self) -> String {
-        let mut i = 0;
-        let l = self.verticies.len();
-        let mut final_str: Vec<Vec<String>> = Vec::with_capacity(l as usize);
-        for v in self.verticies {
-            final_str.push(Vec::with_capacity(v.arcs.len() + 2 as usize));
-            final_str[i].push(format!("{}", v.id));
-            for a in v.arcs {
-                final_str[i].push(format!("{},{}", a.to, a.distance));
-            }
-            final_str[i].push(format!("\r\n"));
-            i = i + 1;
-        }
-        let mut f: Vec<String> = Vec::with_capacity(l as usize);
-        for x in final_str {
-            f.push(x.join(" "))
-        }
-        return f.join("");
     }
 }
 

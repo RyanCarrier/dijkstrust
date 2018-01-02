@@ -21,7 +21,11 @@ impl fmt::Debug for Vertex {
         )
     }
 }
-
+impl Arc {
+    pub fn export(&self) -> String {
+        return format!("{},{}", self.to, self.distance);
+    }
+}
 
 impl Vertex {
     pub fn new(id: u64) -> Vertex {
@@ -42,6 +46,18 @@ impl Vertex {
 
     pub fn remove_arc(&mut self, to: u64) {
         self.arcs.retain(|a| a.to != to);
+    }
+
+    pub fn export(&self) -> String {
+        return format!(
+            "{} {}",
+            self.id,
+            (&self.arcs)
+                .into_iter()
+                .map(|a| a.export())
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
     }
 }
 
