@@ -136,13 +136,14 @@ impl Graph {
     pub fn shortest(&mut self, source: u64, destination: u64) -> Option<BestPath> {
         //TODO: implement anti looping (on arc direct and on secondary to self.)
         //let mut visiting = LinkedList::new();
+        let destination = destination as usize;
         let mut visiting = BinaryHeap::new();
         let mut touch_dest = false;
         self.setup(source);
         visiting.push(source);
         while !visiting.is_empty() {
             //for each node we are visiting, get it's current id, distance and arcs to other nodes
-            let visitingid = visiting.pop().unwrap();
+            let visitingid = visiting.pop().unwrap() as usize;
             let distance = self.verticies[visitingid as usize].best_distance;
 
             //let arcs = self.verticies[visitingid as usize].arcs.clone();
@@ -152,8 +153,8 @@ impl Graph {
             let l = self.verticies[visitingid as usize].arcs.len();
             while i < l {
                 //arc in arcs {
-                let id = self.verticies[visitingid as usize].arcs[i].to.clone();
-                let dist = self.verticies[visitingid as usize].arcs[i].distance.clone();
+                let id = self.verticies[visitingid as usize].arcs[i].to as usize;
+                let dist = self.verticies[visitingid as usize].arcs[i].distance;
                 i += 1;
                 let vertex = &mut self.verticies[id as usize];
                 if id == visitingid || distance >= vertex.best_distance ||
@@ -167,14 +168,14 @@ impl Graph {
                 //if it is the new best node, make sure we update it's distance and best node, then
                 //set it to be (re)visited later
                 vertex.best_distance = distance + dist;
-                vertex.best_verticie = visitingid;
-                visiting.push(id);
+                vertex.best_verticie = visitingid as u64;
+                visiting.push(id as u64);
             }
         }
         if !touch_dest {
             return None;
         }
-        return Some(self.best_path(source, destination, touch_dest));
+        return Some(self.best_path(source, destination as u64, touch_dest));
     }
 
     pub fn import(source: &str) -> Result<Graph, ImportError> {
@@ -320,20 +321,20 @@ mod tests {
     #[test]
     fn test_export() {
         let success_strings = [
-            "0 1,4
-1 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
+            "0 1,4\r
+1 2,1 4,1000\r
+2 5,1 4,10\r
+4 0,5 5,0\r
 5",
-            "0 2,1
-1 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
+            "0 2,1\r
+1 2,1 4,1000\r
+2 5,1 4,10\r
+4 0,5 5,0\r
 5",
-            "0 1,1
-6 2,1 4,1000
-2 5,1 4,10
-4 0,5 5,0
+            "0 1,1\r
+6 2,1 4,1000\r
+2 5,1 4,10\r
+4 0,5 5,0\r
 5",
         ];
         for s in success_strings.iter() {
