@@ -17,9 +17,9 @@ pub struct Vertex {
 
 impl Ord for Vertex {
     fn cmp(&self, other: &Vertex) -> Ordering {
-        other.best_distance.cmp(&self.best_distance).then_with(|| {
-            self.id.cmp(&other.id)
-        })
+        //As 'max' is given first in bin heap, we give the lowest distance as it has the
+        // highest priority
+        other.best_distance.cmp(&self.best_distance)
     }
 }
 impl PartialOrd for Vertex {
