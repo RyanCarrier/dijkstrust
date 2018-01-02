@@ -1,11 +1,10 @@
 use std::fmt;
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Arc {
     pub to: u64,
     pub distance: i64,
 }
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Vertex {
     pub id: u64,
     pub best_distance: i64,
