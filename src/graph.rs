@@ -140,6 +140,8 @@ impl Graph {
         let mut visiting = BinaryHeap::new();
         let mut touch_dest = false;
         self.setup(source);
+        //Need to make own visiting priority heap, or a custom struct to parse in to sort better
+        // maybe just to and best_distance
         visiting.push(source);
         while !visiting.is_empty() {
             //for each node we are visiting, get it's current id, distance and arcs to other nodes
