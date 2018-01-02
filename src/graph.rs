@@ -1,6 +1,5 @@
 
 use std::fmt;
-use std::collections::LinkedList;
 use vertex;
 use std;
 use std::fs::File;
@@ -8,8 +7,8 @@ use std::io::Read;
 use std::io;
 use std::num;
 use std::error;
-use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use std::cmp::Ordering;
 
 
 #[derive(Debug)]
@@ -62,7 +61,25 @@ impl error::Error for ImportError {
     }
 }
 
+#[derive(Clone, Eq, PartialEq)]
+struct SmallVertex {
+    id: usize,
+    best_distance: i64,
+}
 
+impl Ord for SmallVertex {
+    fn cmp(&self, other: &SmallVertex) -> Ordering {
+        //As 'max' is given first in bin heap, we give the lowest distance as it has the
+        // highest priority
+        other.best_distance.cmp(&self.best_distance)
+        //self.best_distance.cmp(&other.best_distance)
+    }
+}
+impl PartialOrd for SmallVertex {
+    fn partial_cmp(&self, other: &SmallVertex) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 #[derive(PartialEq)]
 pub struct Graph {
@@ -142,36 +159,43 @@ impl Graph {
         self.setup(source);
         //Need to make own visiting priority heap, or a custom struct to parse in to sort better
         // maybe just to and best_distance
-        visiting.push(source);
+        visiting.push(SmallVertex {
+            id: source as usize,
+            best_distance: 0,
+        });
         while !visiting.is_empty() {
             //for each node we are visiting, get it's current id, distance and arcs to other nodes
-            let visitingid = visiting.pop().unwrap() as usize;
-            let distance = self.verticies[visitingid as usize].best_distance;
+            let visitor = visiting.pop().unwrap();
 
             //let arcs = self.verticies[visitingid as usize].arcs.clone();
             //for each arc to other nodes, check if that path is the new best path to it
             //(from our visiting node)
             let mut i = 0;
-            let l = self.verticies[visitingid as usize].arcs.len();
+            let l = self.verticies[visitor.id].arcs.len();
             while i < l {
                 //arc in arcs {
-                let id = self.verticies[visitingid as usize].arcs[i].to as usize;
-                let dist = self.verticies[visitingid as usize].arcs[i].distance;
+                let arc = SmallVertex {
+                    id: self.verticies[visitor.id].arcs[i].to as usize,
+                    best_distance: self.verticies[visitor.id].arcs[i].distance,
+                };
                 i += 1;
-                let vertex = &mut self.verticies[id as usize];
-                if id == visitingid || distance >= vertex.best_distance ||
-                    distance + dist >= vertex.best_distance
+                if arc.id == visitor.id ||
+                    visitor.best_distance + arc.best_distance >=
+                        self.verticies[arc.id].best_distance
                 {
                     continue;
                 }
-                if id == destination {
+                if arc.id == destination {
                     touch_dest = true;
                 }
                 //if it is the new best node, make sure we update it's distance and best node, then
                 //set it to be (re)visited later
-                vertex.best_distance = distance + dist;
-                vertex.best_verticie = visitingid as u64;
-                visiting.push(id as u64);
+                self.verticies[arc.id].best_distance = visitor.best_distance + arc.best_distance;
+                self.verticies[arc.id].best_verticie = visitor.id as u64;
+                visiting.push(SmallVertex {
+                    id: self.verticies[arc.id].id as usize,
+                    best_distance: self.verticies[arc.id].best_distance,
+                });
             }
         }
         if !touch_dest {
