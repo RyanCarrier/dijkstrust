@@ -164,13 +164,14 @@ impl Graph {
             best_distance: 0,
         });
         while !visiting.is_empty() {
-            //for each node we are visiting, get it's current id, distance and arcs to other nodes
             let visitor = visiting.pop().unwrap();
-
-            //let arcs = self.verticies[visitingid as usize].arcs.clone();
             //for each arc to other nodes, check if that path is the new best path to it
             //(from our visiting node)
             let mut i = 0;
+            if visitor.best_distance > self.verticies[visitor.id].best_distance {
+                //Can remove when dupliocates are removed
+                continue;
+            }
             let l = self.verticies[visitor.id].arcs.len();
             while i < l {
                 //arc in arcs {
@@ -390,15 +391,15 @@ mod bench {
     use std::io;
 
     #[bench]
-    fn setup_node_4(b: &mut Bencher) {
+    fn setup_0_node_4(b: &mut Bencher) {
         bench_setup_n(4, b);
     }
     #[bench]
-    fn setup_node_256(b: &mut Bencher) {
+    fn setup_1_node_256(b: &mut Bencher) {
         bench_setup_n(256, b);
     }
     #[bench]
-    fn setup_node_4096(b: &mut Bencher) {
+    fn setup_2_node_4096(b: &mut Bencher) {
         bench_setup_n(4096, b);
     }
 
