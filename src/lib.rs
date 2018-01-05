@@ -4,4 +4,3 @@ extern crate test;
 extern crate rand;
 pub mod graph;
 pub mod vertex;
-mod list;
